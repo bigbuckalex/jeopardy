@@ -31,13 +31,17 @@ import { MetaTags } from '@redwoodjs/web'
 const DemoPage = () => {
   const [data, setData] = useState()
   const [loading, setLoading] = useState(true)
+  const [allCategories, setAllCategories] = useState([])
   const [category, setCategory] = useState()
-  const [value, setValue] = useState()
+  const [completedClues, setCompletedClues] = useState([])
+  const [uniqueClue, setUniqueClue] = useState()
   const [revealed, setRevealed] = useState(false)
+  const [currentClue, setCurrentClue] = useState()
+  const [stats, setStats] = useState({})
 
   const { isOpen, onOpen, onClose } = useDisclosure()
 
-  const start = new Date(2001, 0, 1)
+  const start = new Date(2002, 0, 1)
   const end = new Date()
 
   const randomDate = (start, end) => {
@@ -63,6 +67,11 @@ const DemoPage = () => {
             setLoading(false)
             console.log(data)
             setData(data)
+            const categories = []
+            for (let i = 0; i < 6; i++) {
+              categories.push(data.jeopardy[i].category)
+            }
+            setAllCategories(categories)
           }
         })
   }
@@ -71,6 +80,14 @@ const DemoPage = () => {
     getData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    setCurrentClue(() => {
+      return data?.jeopardy?.find(
+        (clue) => clue.category === category && clue.clue === uniqueClue
+      )
+    })
+  }, [data, category, uniqueClue])
 
   return (
     <>
@@ -87,119 +104,120 @@ const DemoPage = () => {
               Category
             </MenuButton>
             <MenuList>
-              <MenuItem
-                onClick={() => setCategory(data?.jeopardy[0]?.category)}
-              >
-                {data?.jeopardy[0]?.category}
-              </MenuItem>
-              <MenuItem
-                onClick={() => setCategory(data?.jeopardy[1]?.category)}
-              >
-                {data?.jeopardy[1]?.category}
-              </MenuItem>
-              <MenuItem
-                onClick={() => setCategory(data?.jeopardy[2]?.category)}
-              >
-                {data?.jeopardy[2]?.category}
-              </MenuItem>
-              <MenuItem
-                onClick={() => setCategory(data?.jeopardy[3]?.category)}
-              >
-                {data?.jeopardy[3]?.category}
-              </MenuItem>
-              <MenuItem
-                onClick={() => setCategory(data?.jeopardy[4]?.category)}
-              >
-                {data?.jeopardy[4]?.category}
-              </MenuItem>
-              <MenuItem
-                onClick={() => setCategory(data?.jeopardy[5]?.category)}
-              >
-                {data?.jeopardy[5]?.category}
-              </MenuItem>
+              {allCategories.map((categoryName, i) => (
+                <MenuItem key={i} onClick={() => setCategory(categoryName)}>
+                  {categoryName}
+                </MenuItem>
+              ))}
             </MenuList>
           </Menu>
           {category && (
             <Flex direction="column">
-              <Button
-                onClick={() => {
-                  setValue(200)
-                  onOpen()
-                }}
-              >
-                $200
-              </Button>
-              <Button
-                onClick={() => {
-                  setValue(400)
-                  onOpen()
-                }}
-              >
-                $400
-              </Button>
-              <Button
-                onClick={() => {
-                  setValue(600)
-                  onOpen()
-                }}
-              >
-                $600
-              </Button>
-              <Button
-                onClick={() => {
-                  setValue(800)
-                  onOpen()
-                }}
-              >
-                $800
-              </Button>
-              <Button
-                onClick={() => {
-                  setValue(1000)
-                  onOpen()
-                }}
-              >
-                $1000
-              </Button>
+              {data?.jeopardy
+                ?.filter((e) => e.category === category)
+                .map((e, i) => {
+                  const disabled = completedClues.some(
+                    (clue) => clue[category] === e.clue
+                  )
+                  return (
+                    <Button
+                      key={i}
+                      onClick={() => {
+                        setUniqueClue(e.clue)
+                        onOpen()
+                      }}
+                      disabled={disabled}
+                    >
+                      ${(i + 1) * 200}
+                    </Button>
+                  )
+                })}
             </Flex>
           )}
           <Modal
             isOpen={isOpen}
-            onClose={() => {
-              setRevealed(false)
-              onClose()
-            }}
+            onClose={onClose}
+            closeOnEsc={false}
+            closeOnOverlayClick={false}
           >
             <ModalOverlay />
             <ModalContent>
               <ModalHeader />
-              <ModalCloseButton />
+              <ModalCloseButton
+                onClick={() => {
+                  setRevealed(false)
+                  setCompletedClues([
+                    ...completedClues,
+                    { [category]: uniqueClue },
+                  ])
+                }}
+              />
               <ModalBody>
-                <Text>
-                  {
-                    data?.jeopardy?.find(
-                      (clue) =>
-                        clue.category === category && clue.value === value
-                    )?.clue
-                  }
-                </Text>
+                <Text>{currentClue?.clue}</Text>
                 <Text as="b" visibility={!revealed && 'hidden'}>
-                  {
-                    data?.jeopardy?.find(
-                      (clue) =>
-                        clue.category === category && clue.value === value
-                    )?.answer
-                  }
+                  {currentClue?.answer}
                 </Text>
               </ModalBody>
 
               <ModalFooter>
                 {revealed && (
                   <>
-                    <Button colorScheme="green" mr={3}>
+                    <Button
+                      colorScheme="green"
+                      mr={3}
+                      onClick={() => {
+                        setRevealed(false)
+                        setCompletedClues([
+                          ...completedClues,
+                          { [category]: uniqueClue },
+                        ])
+                        if (stats[category]?.correct) {
+                          const prevCorrect = stats[category].correct
+                          setStats({
+                            ...stats,
+                            [category]: {
+                              ...stats[category],
+                              correct: prevCorrect + 1,
+                            },
+                          })
+                        } else {
+                          setStats({
+                            ...stats,
+                            [category]: { ...stats[category], correct: 1 },
+                          })
+                        }
+                        onClose()
+                      }}
+                    >
                       Correct
                     </Button>
-                    <Button colorScheme="red" mr={3}>
+                    <Button
+                      colorScheme="red"
+                      mr={3}
+                      onClick={() => {
+                        setRevealed(false)
+                        setCompletedClues([
+                          ...completedClues,
+                          { [category]: uniqueClue },
+                        ])
+                        if (stats[category]?.incorrect) {
+                          const prevIncorrect = stats[category].incorrect
+                          setStats({
+                            ...stats,
+                            [category]: {
+                              ...stats[category],
+                              incorrect: prevIncorrect + 1,
+                            },
+                          })
+                        } else {
+                          setStats({
+                            ...stats,
+                            [category]: { ...stats[category], incorrect: 1 },
+                          })
+                        }
+                        onClose()
+                      }}
+                    >
                       Incorrect
                     </Button>
                   </>
@@ -215,8 +233,7 @@ const DemoPage = () => {
               </ModalFooter>
             </ModalContent>
           </Modal>
-          {category}
-          {value}
+          {JSON.stringify(stats)}
         </>
       )}
     </>
