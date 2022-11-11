@@ -139,6 +139,8 @@ const DemoPage = () => {
             onClose={onClose}
             closeOnEsc={false}
             closeOnOverlayClick={false}
+            // eslint-disable-next-line jsx-a11y/no-autofocus
+            autoFocus={false}
           >
             <ModalOverlay />
             <ModalContent>
@@ -153,7 +155,11 @@ const DemoPage = () => {
                 }}
               />
               <ModalBody>
-                <Text>{currentClue?.clue}</Text>
+                <Text>
+                  {currentClue?.clue === 'Unrevealed'
+                    ? 'Sorry, this clue was not revealed during airing. Close this window to continue playing.'
+                    : currentClue?.clue}
+                </Text>
                 <Text as="b" visibility={!revealed && 'hidden'}>
                   {currentClue?.answer}
                 </Text>
@@ -224,6 +230,7 @@ const DemoPage = () => {
                 )}
                 <Button
                   varient="ghost"
+                  disabled={currentClue?.clue === 'Unrevealed'}
                   onClick={() => {
                     setRevealed(true)
                   }}
