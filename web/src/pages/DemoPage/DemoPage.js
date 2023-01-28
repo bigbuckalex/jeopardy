@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
-import { ChevronDownIcon } from '@chakra-ui/icons'
 import {
   Flex,
   Heading,
@@ -10,10 +9,6 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
-  MenuItemOption,
-  MenuGroup,
-  MenuOptionGroup,
-  MenuDivider,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -22,11 +17,19 @@ import {
   ModalBody,
   ModalCloseButton,
   useDisclosure,
+  Spinner,
 } from '@chakra-ui/react'
 import moment from 'moment'
+import {
+  VictoryBar,
+  VictoryChart,
+  VictoryAxis,
+  VictoryTheme,
+  VictoryStack,
+  VictoryLabel,
+} from 'victory'
 
-import { Link, routes } from '@redwoodjs/router'
-import { MetaTags } from '@redwoodjs/web'
+import DemoLayout from 'src/layouts/DemoLayout/DemoLayout'
 
 const DemoPage = () => {
   const [data, setData] = useState()
@@ -37,7 +40,7 @@ const DemoPage = () => {
   const [uniqueClue, setUniqueClue] = useState()
   const [revealed, setRevealed] = useState(false)
   const [currentClue, setCurrentClue] = useState()
-  const [stats, setStats] = useState({})
+  const stats = useRef({})
 
   const { isOpen, onOpen, onClose } = useDisclosure()
 
@@ -72,6 +75,27 @@ const DemoPage = () => {
               categories.push(data.jeopardy[i].category)
             }
             setAllCategories(categories)
+            setCategory(categories[0])
+            stats.current = {
+              correct: categories
+                .slice()
+                .reverse()
+                .map((category) => {
+                  return { category: category, count: 0 }
+                }),
+              incorrect: categories
+                .slice()
+                .reverse()
+                .map((category) => {
+                  return { category: category, count: 0 }
+                }),
+              unanswered: categories
+                .slice()
+                .reverse()
+                .map((category) => {
+                  return { category: category, count: 0 }
+                }),
+            }
           }
         })
   }
@@ -89,161 +113,163 @@ const DemoPage = () => {
     })
   }, [data, category, uniqueClue])
 
+  if (loading) return <Spinner />
+
+  if (completedClues.length === 60) return <div>{JSON.stringify(stats)}</div>
+
   return (
-    <>
-      <MetaTags title="Demo" description="Demo page" />
-
-      <h1>DemoPage</h1>
-      {loading ? (
-        <p>loading...</p>
-      ) : (
-        <>
-          <Menu>
-            <Heading size="lg">{category}</Heading>
-            <MenuButton as={Button} rightIcon={<ChevronDownIcon />}>
-              Category
-            </MenuButton>
-            <MenuList>
-              {allCategories.map((categoryName, i) => (
-                <MenuItem key={i} onClick={() => setCategory(categoryName)}>
-                  {categoryName}
-                </MenuItem>
-              ))}
-            </MenuList>
-          </Menu>
-          {category && (
-            <Flex direction="column">
-              {data?.jeopardy
-                ?.filter((e) => e.category === category)
-                .map((e, i) => {
-                  const disabled = completedClues.some(
-                    (clue) => clue[category] === e.clue
-                  )
-                  return (
-                    <Button
-                      key={i}
-                      onClick={() => {
-                        setUniqueClue(e.clue)
-                        onOpen()
-                      }}
-                      disabled={disabled}
-                    >
-                      ${(i + 1) * 200}
-                    </Button>
-                  )
-                })}
-            </Flex>
-          )}
-          <Modal
-            isOpen={isOpen}
-            onClose={onClose}
-            closeOnEsc={false}
-            closeOnOverlayClick={false}
-            // eslint-disable-next-line jsx-a11y/no-autofocus
-            autoFocus={false}
-          >
-            <ModalOverlay />
-            <ModalContent>
-              <ModalHeader />
-              <ModalCloseButton
-                onClick={() => {
-                  setRevealed(false)
-                  setCompletedClues([
-                    ...completedClues,
-                    { [category]: uniqueClue },
-                  ])
-                }}
-              />
-              <ModalBody>
-                <Text>
-                  {currentClue?.clue === 'Unrevealed'
-                    ? 'Sorry, this clue was not revealed during airing. Close this window to continue playing.'
-                    : currentClue?.clue}
-                </Text>
-                <Text as="b" visibility={!revealed && 'hidden'}>
-                  {currentClue?.answer}
-                </Text>
-              </ModalBody>
-
-              <ModalFooter>
-                {revealed && (
-                  <>
-                    <Button
-                      colorScheme="green"
-                      mr={3}
-                      onClick={() => {
-                        setRevealed(false)
-                        setCompletedClues([
-                          ...completedClues,
-                          { [category]: uniqueClue },
-                        ])
-                        if (stats[category]?.correct) {
-                          const prevCorrect = stats[category].correct
-                          setStats({
-                            ...stats,
-                            [category]: {
-                              ...stats[category],
-                              correct: prevCorrect + 1,
-                            },
-                          })
-                        } else {
-                          setStats({
-                            ...stats,
-                            [category]: { ...stats[category], correct: 1 },
-                          })
-                        }
-                        onClose()
-                      }}
-                    >
-                      Correct
-                    </Button>
-                    <Button
-                      colorScheme="red"
-                      mr={3}
-                      onClick={() => {
-                        setRevealed(false)
-                        setCompletedClues([
-                          ...completedClues,
-                          { [category]: uniqueClue },
-                        ])
-                        if (stats[category]?.incorrect) {
-                          const prevIncorrect = stats[category].incorrect
-                          setStats({
-                            ...stats,
-                            [category]: {
-                              ...stats[category],
-                              incorrect: prevIncorrect + 1,
-                            },
-                          })
-                        } else {
-                          setStats({
-                            ...stats,
-                            [category]: { ...stats[category], incorrect: 1 },
-                          })
-                        }
-                        onClose()
-                      }}
-                    >
-                      Incorrect
-                    </Button>
-                  </>
-                )}
+    <DemoLayout>
+      <Menu matchWidth={true}>
+        <Heading size="lg">Jeopardy! Round</Heading>
+        <MenuButton as={Button}>{category}</MenuButton>
+        <MenuList>
+          {allCategories.map((categoryName, i) => (
+            <MenuItem
+              key={i}
+              onClick={() => {
+                setCategory(categoryName)
+              }}
+            >
+              {categoryName}
+            </MenuItem>
+          ))}
+        </MenuList>
+      </Menu>
+      {category && (
+        <Flex direction="column" gap={2}>
+          {data?.jeopardy
+            ?.filter((e) => e.category === category)
+            .map((e, i) => {
+              const disabled = completedClues.some(
+                (clue) => clue[category] === e.clue
+              )
+              return (
                 <Button
-                  varient="ghost"
-                  disabled={currentClue?.clue === 'Unrevealed'}
+                  key={i}
                   onClick={() => {
-                    setRevealed(true)
+                    setUniqueClue(e.clue)
+                    onOpen()
+                  }}
+                  disabled={disabled}
+                >
+                  ${(i + 1) * 200}
+                </Button>
+              )
+            })}
+        </Flex>
+      )}
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        closeOnEsc={false}
+        closeOnOverlayClick={false}
+        // eslint-disable-next-line jsx-a11y/no-autofocus
+        autoFocus={false}
+      >
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>{category}</ModalHeader>
+          <ModalCloseButton
+            onClick={() => {
+              setRevealed(false)
+              setCompletedClues([...completedClues, { [category]: uniqueClue }])
+              stats.current.unanswered.find((e) => e.category === category)
+                .count++
+            }}
+          />
+          <ModalBody>
+            <Text>
+              {currentClue?.clue === 'Unrevealed'
+                ? 'Sorry, this clue was not revealed during airing. Close this window to continue playing.'
+                : currentClue?.clue}
+            </Text>
+            <Text as="b" visibility={!revealed && 'hidden'}>
+              {currentClue?.answer}
+            </Text>
+          </ModalBody>
+
+          <ModalFooter>
+            {revealed && (
+              <>
+                <Button
+                  colorScheme="green"
+                  mr={3}
+                  onClick={() => {
+                    setRevealed(false)
+                    setCompletedClues([
+                      ...completedClues,
+                      { [category]: uniqueClue },
+                    ])
+                    stats.current.correct.find((e) => e.category === category)
+                      .count++
+                    onClose()
                   }}
                 >
-                  Reveal Answer
+                  Correct
                 </Button>
-              </ModalFooter>
-            </ModalContent>
-          </Modal>
-          {JSON.stringify(stats)}
-        </>
+                <Button
+                  colorScheme="red"
+                  mr={3}
+                  onClick={() => {
+                    setRevealed(false)
+                    setCompletedClues([
+                      ...completedClues,
+                      { [category]: uniqueClue },
+                    ])
+                    stats.current.incorrect.find((e) => e.category === category)
+                      .count++
+                    onClose()
+                  }}
+                >
+                  Incorrect
+                </Button>
+              </>
+            )}
+            <Button
+              varient="ghost"
+              disabled={currentClue?.clue === 'Unrevealed'}
+              onClick={() => {
+                setRevealed(true)
+              }}
+            >
+              Reveal Answer
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+      {completedClues.length > 0 && (
+        <VictoryChart domainPadding={8} theme={VictoryTheme.material}>
+          <VictoryAxis tickFormat={() => ''} />
+          <VictoryAxis tickFormat={[1, 2, 3, 4, 5]} dependentAxis />
+          <VictoryStack
+            horizontal
+            colorScale={['grey', 'red', 'green']}
+            labels={allCategories.slice().reverse()}
+            labelComponent={<VictoryLabel dy={-16} dx={55} x={0} />}
+            animate={{
+              duration: 500,
+              onLoad: { duration: 500 },
+            }}
+          >
+            <VictoryBar
+              data={stats.current.unanswered}
+              x="category"
+              y={(data) => data.count}
+            />
+            <VictoryBar
+              data={stats.current.incorrect}
+              x="category"
+              y={(data) => data.count}
+            />
+            <VictoryBar
+              data={stats.current.correct}
+              x="category"
+              y={(data) => data.count}
+            />
+          </VictoryStack>
+        </VictoryChart>
       )}
-    </>
+    </DemoLayout>
   )
 }
 
