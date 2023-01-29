@@ -18,6 +18,7 @@ import {
   ModalCloseButton,
   useDisclosure,
   Spinner,
+  Center,
 } from '@chakra-ui/react'
 import moment from 'moment'
 import {
@@ -41,6 +42,7 @@ const DemoPage = () => {
   const [revealed, setRevealed] = useState(false)
   const [currentClue, setCurrentClue] = useState()
   const stats = useRef({})
+  const [dateString, setDateString] = useState()
 
   const { isOpen, onOpen, onClose } = useDisclosure()
 
@@ -58,8 +60,9 @@ const DemoPage = () => {
   }
 
   const getData = () => {
-    const { day, month, year } = randomDate(start, end)
-    loading &&
+    if (loading) {
+      const { day, month, year } = randomDate(start, end)
+
       fetch(`https://jarchive-json.glitch.me/game/${month}/${day}/${year}`)
         .then((response) => response.json())
         .then((data) => {
@@ -96,8 +99,10 @@ const DemoPage = () => {
                   return { category: category, count: 0 }
                 }),
             }
+            setDateString(`${month}/${day}/${year}`)
           }
         })
+    }
   }
 
   useEffect(() => {
@@ -113,14 +118,27 @@ const DemoPage = () => {
     })
   }, [data, category, uniqueClue])
 
-  if (loading) return <Spinner />
+  if (loading)
+    return (
+      <Center height="100vh">
+        <Flex my="auto" justify="space-around" direction="column" gap={6}>
+          <Spinner size="xl" m="auto" />
+          <Text fontSize="2xl" textAlign="center" m="auto">
+            Finding a Jeopardy! game...
+          </Text>
+        </Flex>
+      </Center>
+    )
 
   if (completedClues.length === 60) return <div>{JSON.stringify(stats)}</div>
 
   return (
     <DemoLayout>
+      <Flex direction="column" gap={2}>
+        <Heading size="lg">Jeopardy!</Heading>
+        <Text fontSize="xs">game from {dateString}</Text>
+      </Flex>
       <Menu matchWidth={true}>
-        <Heading size="lg">Jeopardy! Round</Heading>
         <MenuButton as={Button}>{category}</MenuButton>
         <MenuList>
           {allCategories.map((categoryName, i) => (
